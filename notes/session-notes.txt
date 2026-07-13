@@ -1,0 +1,194 @@
+**What is Sequelize** (v6-stable)
+
+- promise-based ORM (Object Relational Mapper) for Node.js that works mainly with:
+[MySQL - PostgreSQL - SQLite - MariaDB - MSSQL]
+
+- lets you work with JavaScript objects instead of raw SQL
+==> while still allowing raw queries when needed.
+
+----------------------------------------------------------------------------------------------------------------------
+npm install --save sequelize
+npm install --save mysql2 
+
+
+1) new sequelize instance
+2) check database connection (async function -> sequelize.authenticate())     [import in bootstrap]   
+
+3) create student model [sequelize.define('ModelName', { attributes })]      [model name pluralized by default]
+
+4) sync database connection (async function -> sequelize.sync())     [import in bootstrap]
+**synchronization => sequelize.sync(options)
+
+{alter: true, force: true}
+==> only used in development otherwise both are false(default)
+
+alter: adjusts existing tables to match model (adds/modifies columns without dropping table)
+force: drops & recreates tables (data is lost)
+
+**For safety check=>
+sequelize.sync({ force: true, match: /_test$/ });
+===> This will run .sync() only if database name ends with '_test'
+
+-----------------------------------------------------Models-----------------------------------------------------------
+Model creation ways
+1) Implicitly => sequelize.define('ModelName', attributes, options)             [recommended]
+2) Explicitly => export class modelName extends Model {} => modelName.init(attributes, options)
+
+--------------------------------------------
+Model options =>  [alter - force]
+- freezeTableName: true                       => Disables automatic pluralization
+- tableName: "users_test"                     => Sets exact table name
+- timeStamps: false (true by default)         => Auto adds createdAt & updatedAt
+- "createdAt": "u_created_at"                 => Renames createdAt column
+- "updatedAt": "u_updated_at"                 => Renames updatedAt column
+
+- paranoid                                    => Enables soft delete using deletedAt
+
+fields options =>
+- type: DataTypes.STRING(50)                  => Defines column data type & length
+- field: "fieldName"                          => Custom database column name
+- primaryKey                                  => Marks column as primary key
+- autoIncrement                               => Auto increases numeric value
+- allowNull                                   => Allows or blocks NULL values         (constraint)
+- unique                                      => Enforces unique values in column     (constraint)
+
+- defaultValue                                => Sets value when none is provided
+
+- validate                                    => Adds field-level validation rules
+
+- references                                  => Creates foreign key relationship
+- onDelete                                    => Action when referenced row is deleted
+- onUpdate                                    => Action when referenced row is updated
+
+----------------------------------------------------------------------------
+Validation =>
+validate
+-> built-in validations
+-> custom validation (in field or in model options)
+
+1) built-in =>  (In docs)
+isEmail: true,
+notEmpty: true,
+len: [5, 100]
+
+2) Custom Validator (Inside the Field) =>
+age: {
+  type: DataTypes.INTEGER,
+  validate: {
+    isAdult(value) {
+      if (value < 18) {
+        throw new Error('Must be 18 or older');
+      }
+    }
+  }
+}
+
+3) Custom Validator (Outside the Field – Model Level) =>
+{
+  validate: {
+    passwordsMatch() {
+      if (this.password !== this.confirmPassword) {
+        throw new Error('Passwords do not match');
+      }
+    }
+  }
+}
+
+---------------------------------------------------------------------
+Validation vs Constraint =>
+
+| Aspect           | Validation                            | Constraint                  |
+| ---------------- | ------------------------------------- | --------------------------- |
+| Where it runs    | Inside Sequelize before saving        | Inside the database itself  |
+| Purpose          | Check data logic and business rules   | Protect database integrity  |
+| Custom logic     | Yes (you can write JS code)           | No (fixed DB rules)         |
+| Can be bypassed? | Yes, if someone writes directly to DB | No, database will reject it |
+| Error source     | Sequelize throws the error            | Database throws the error   |
+
+-------------------------------------------------------------------------------------------------------------------
+Virtuals =>
+A virtual field is a field that:
+- Does not exist in the database
+- Is computed in JavaScript
+- Is used for formatting or logic
+
+*Virtual Getter (Computed Field) ->
+fullName: {
+  type: DataTypes.VIRTUAL,
+  get() {
+    return `${this.firstName} ${this.lastName}`;
+  }
+}
+
+==> Combines firstName and lastName --- Read-only --- No column created in DB
+
+*Virtual Setter (Derived Field) ->
+fullName: {
+  type: DataTypes.VIRTUAL,
+  set(value) {
+    const [firstName, lastName] = value.split(' ');
+    this.setDataValue('firstName', firstName);
+    this.setDataValue('lastName', lastName);
+  }
+}
+
+==> Accepts fullName --- Splits it into firstName and lastName --- Saves values into real fields 
+
+-----------------------------------------------------COURSES--------------------------------------------------------
+- course model
+- export in index.js
+- student module copy & edit
+- associations from docs
+- many to many apply  (apply in courseModel)     => junction table created
+
+- add course to know then how student enroll unenroll with simplicity
+
+
+====> when i applied many-to-many relationship   ==> sequelize provided us with some methods called magic methods
+
+await student.addCourse(course);
+Sequelize created it because of belongsToMany.
+
+
+---------------------Magic Methods---------------------------------------
+Sequelize generates methods in patterns, not random names.
+
+Student.belongsToMany(Course) ==>
+For Student instance
+-Read ->
+student.getCourses()
+student.countCourses()
+student.hasCourse(course)
+student.hasCourses([course1, course2])
+
+- Create / Add ->
+student.addCourse(course)
+student.addCourses([course1, course2])
+student.createCourse({ title, code })
+
+- Remove ->
+student.removeCourse(course)
+student.removeCourses([course1, course2])
+student.setCourses([]) // replace all
+
+- Replace ->
+student.setCourses([course1, course2])
+Junction table access
+student.getCourses({ through: { where: { grade: "A" } } })
+
+
+===> same for Student instance
+
+
+
+=====> Most important magic methods (ONLY THESE)
+For Student
+student.addCourse(course)      // enroll
+student.getCourses()           // list courses
+student.removeCourse(course)   // unenroll
+
+For Course
+course.getStudents()           //students enrolled in this course
+
+
+

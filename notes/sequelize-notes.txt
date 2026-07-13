@@ -1,0 +1,178 @@
+**What is Sequelize** (v6-stable)
+
+- promise-based ORM (Object Relational Mapper) for Node.js that works mainly with:
+[MySQL - PostgreSQL - SQLite - MariaDB - MSSQL]
+
+- lets you work with JavaScript objects instead of raw SQL
+==> while still allowing raw queries when needed.
+
+| Aspect         | Sequelize (ORM)      | Raw SQL                 |
+| -------------- | -------------------- | ----------------------- |
+| Syntax         | JavaScript           | SQL                     |
+| Learning curve | Easier for beginners | Requires strong SQL     |
+| Security       | Safer by default     | Risk of SQL injection   |
+| Control        | Less control         | Full control            |
+| Performance    | Slight overhead      | Faster                  |
+| Best for       | Rapid development    | Complex / heavy queries |
+
+------------------------------------------------------------------------------------------------------
+ORM => Kol haga ebara 3n objects - btt3amel m3 relational databases - maps query according to database connection type
+-----------------------------------------------------------------------------------------------------
+CONTROLLER => recieves http request -> returns the response
+SERVICE =>just a function - recives inputs -> executes the logic -> responds with output regardless the type of the request (http /graphql/---)
+CONFIG FOLDER => (.env.development - .env.production - config.service.js)
+
+----------------------------------------------------------------------------------------------------
+npm install --save sequelize
+npm install --save mysql2 
+
+1) new sequelize instance
+2) check database connection (async function -> sequelize.authenticate())     [import in bootstrap]
+
+3) create user model [sequelize.define('ModelName', { columns })]      [model name pluralized by default]
+
+4) sync database connection (async function -> sequelize.sync())     [import in bootstrap]
+**synchronization => sequelize.sync(options)
+
+{alter: true, force: true}
+==> only used in development otherwise both are false(default)
+
+alter: adjusts existing tables to match model (adds/modifies columns without dropping table)
+force: drops & recreates tables (data is lost)
+
+**For safety check=>
+sequelize.sync({ force: true, match: /_test$/ });
+===> This will run .sync() only if database name ends with '_test'
+
+
+-------------------------------------------------------------------------------------------------
+Model creation ways
+1) Implicitly => sequelize.define('ModelName', attributes, options)
+2) Explicitly => extend model => modelName.init(attributes, options)
+
+--------------------------------------------
+Model options =>  [alter - force]
+- freezeTableName: true                       => Disables automatic pluralization
+- tableName: "users_test"                     => Sets exact table name
+- timeStamps: false (true by default)         => Auto adds createdAt & updatedAt
+- "createdAt": "u_created_at"                 => Renames createdAt column
+- "updatedAt": "u_updated_at"                 => Renames updatedAt column
+
+- paranoid                                    => Enables soft delete using deletedAt
+
+fields options =>
+- type: DataTypes.STRING(50)                  => Defines column data type & length
+- field: "fieldName"                          => Custom database column name
+- primaryKey                                  => Marks column as primary key
+- autoIncrement                               => Auto increases numeric value
+- allowNull                                   => Allows or blocks NULL values         (constraint)
+- unique                                      => Enforces unique values in column     (constraint)
+
+- defaultValue                                => Sets value when none is provided
+- comment                                     => Adds database column comment
+
+- validate                                    => Adds field-level validation rules
+
+- references                                  => Creates foreign key relationship
+- onDelete                                    => Action when referenced row is deleted
+- onUpdate                                    => Action when referenced row is updated
+
+----------------------------------------------------------------------------
+Validation =>
+validate
+-> built-in validations
+-> custom validation (in field or in model options)
+
+1) built-in =>  (In docs)
+isEmail: true,
+notEmpty: true,
+len: [5, 100]
+
+2) Custom Validator (Inside the Field) =>
+age: {
+  type: DataTypes.INTEGER,
+  validate: {
+    isAdult(value) {
+      if (value < 18) {
+        throw new Error('Must be 18 or older');
+      }
+    }
+  }
+}
+
+3) Custom Validator (Outside the Field – Model Level) =>
+{
+  validate: {
+    passwordsMatch() {
+      if (this.password !== this.confirmPassword) {
+        throw new Error('Passwords do not match');
+      }
+    }
+  }
+}
+
+---------------------------------------------------------------------
+Validation vs Constraint =>
+
+| Aspect           | Validation                            | Constraint                  |
+| ---------------- | ------------------------------------- | --------------------------- |
+| Where it runs    | Inside Sequelize before saving        | Inside the database itself  |
+| Purpose          | Check data logic and business rules   | Protect database integrity  |
+| Custom logic     | Yes (you can write JS code)           | No (fixed DB rules)         |
+| Can be bypassed? | Yes, if someone writes directly to DB | No, database will reject it |
+| Error source     | Sequelize throws the error            | Database throws the error   |
+
+-------------------------------------------------------------------------------------------------------------------
+Virtuals =>
+A virtual field is a field that:
+- Does not exist in the database
+- Is computed in JavaScript
+- Is used for formatting or logic
+
+*Virtual Getter (Computed Field) ->
+fullName: {
+  type: DataTypes.VIRTUAL,
+  get() {
+    return `${this.firstName} ${this.lastName}`;
+  }
+}
+
+==> Combines firstName and lastName --- Read-only --- No column created in DB
+
+*Virtual Setter (Derived Fields) ->
+fullName: {
+  type: DataTypes.VIRTUAL,
+  set(value) {
+    const [firstName, lastName] = value.split(' ');
+    this.setDataValue('firstName', firstName);
+    this.setDataValue('lastName', lastName);
+  }
+}
+
+==> Accepts fullName --- Splits it into firstName and lastName --- Saves values into real fields 
+
+--------------------------------------------------------------------------------------------------------------------
+Ways to create a user =>
+1) new modelInstance({}) + save()       => not recommended [not a class and can add any attributes before save]
+2) model.build({}) + save                     => same
+3) model.create({})                     => recommended  (short-hand of build&save)
+
+To avoid inserting fields not in req.body => create option -> fields
+4) bulkCreate([{},{}]) & bulkbuild => to insert many        [any user failed => whole operation field]
+5) upsert()  => find based on unique field -> found update - not found create it
+
+new User().save()
+User.build().save()
+User.create()
+
+----------------------------------------------------------------------------------------------------------------------
+Finders =>
+1)findAll()
+2)findByPk()
+3)findOne()
+4)findOrCreate()
+5)findAndCountAll({where, limit, offset})    (pagination)
+
+
+-----------------------------------------------------------------------------------------------------------------------
+Assosiacions

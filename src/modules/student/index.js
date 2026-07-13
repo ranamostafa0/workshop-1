@@ -1,0 +1,1 @@
+export {default as studentRouter} from './student.controller.js'

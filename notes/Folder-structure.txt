@@ -1,0 +1,147 @@
+--------------------------------------------------------------Flow------------------------------------------------------
+npm init -y
+npm i express mysql2 ....
+
+src => main.js
+edit package.json
+
+src => app.bootstrap.js => build server
+
+src => modules => index.js - auth(controller-service-index) - user(controller-service-index)
+app.use(authRouter-userRouter)
+
+src => DB => connection.js - models(index - userModel - otherModels)
+import needed models in needed services
+
+**why index.js for every folder ?? works as a secretary for each folder -- reduces the dependency between modules -- and then reduces error percentage becuse they are not fully dependent on each other (changes occur in one file does not affect others)
+
+bootstrap() => globalErrorHandling
+
+config => .env.development - .env.production - config.service.js
+
+set needed enviroment variables (in development & production)
+
+npm i dotenv
+npm i cross-env
+
+edit scripts =>
+    "start:dev": "cross-env NODE_ENV=development  node --watch-path=. ./src/main.js",
+    "start:prod": "cross-env NODE_ENV=production  node  ./src/main.js"
+
+In config.service.js =>
+export const NODE_ENV = process.env.NODE_ENV
+const envPath = {
+    development: `.env.development`,
+    production: `.env.production`
+}
+
+config({ path: path.resolve(`./config/${envPath[NODE_ENV]}`) })
+
+export all enviroment variables
+
+------------------------------------------------------------------------------------------------------------------------
+1) Convert from ES5 to ES6 
+type: "module"
+
+| Feature              | ES5 (Old way)                 | ES6 (Modern way)         | When / Why                           
+|Export single thing   | `module.exports = func`       | `export default func`    | When exporting **one main thing** 
+|Import single thing   | `const f = require('./file')` | `import f from './file'` | Default import                    
+|Export multiple things | `module.exports = {a,b}`     | `export const a = ...`   | Named exports                     
+|Import multiple things | `const {a,b} = require()`    | `import { a, b } from`   | Select what you need   
+
+------------------------------------------------main & bootstrap-----------------------------------------------------
+src folder => main.js  (import bootstrap function)
+app.bootstrap.js => bootstrap function => build server -- all needed imports -- app.use(controllers) --- export default         
+---------------------------------------------------modules-----------------------------------------------------------
+modules folder => auth - user - etc ---- index.js
+- Each module (controller - service) -> is a small express app (router)
+
+- Controller --> handles HTTP & talks to the service ---> the entry point of the module
+1) Receives the request (req)
+2) Extracts params, body, query
+3) Calls the service
+4) Returns the response (res)
+
+- Service --> business logic layer  ---> does the real work
+1) Contains the actual rules and operations
+2) Talks to models / database
+3) Is independent of HTTP (just a function executes a block of code)
+
+====> Request → Controller → Service → Model → Service → Controller → Response
+
+---------------------------------------------------------DB-----------------------------------------------------------
+DB => 
+- connection.js
+- models [index.js - needed models]
+- export models in index.js
+- import connection in bootsrap()
+- import needed models in needed services
+
+-----------------------------------------------globalErrorHandling----------------------------------------------------
+Global error handling is one place to handle all failures
+- Catches all errors in the application ->  Prevents app crashes
+- Sends consistent error responses to the client
+
+==> Avoids duplicated try/catch -- Ensures consistent error format -- Separates error logic from business logic
+
+    app.use((error, req, res, next) => {
+        const status = error?.cause?.status ?? 500
+        res.status(status).json({
+            error,
+            message: error.message || 'Internal Server Error',
+            stack: error.stack
+        });
+    });
+
+HOW IT WORKS =>
+- Any thrown error or next(err) ends up here
+- Must be defined after all routes
+
+==> Controller → Service → throw error → Global Error Handler → Response
+
+
+-----------------------------------------------------CONFIG-----------------------------------------------------------
+- config folder => .env.development & .env.production => enviroment variables --  config.service.js
+
+npm i dotenv (.env file name is a must)
+
+In config.service.js =>
+import {config} from  "dotenv"
+
+export const NODE_ENV = process.env.NODE_ENV
+config({path.resolve("./config/.env.development")})
+
+export const all other enviroment varibles
+
+==>>import and use these variables in any wanted file
+
+
+--------------------------------------------------------------------------------------
+Instead of save - close server - reopen server due to any change in enviroment variables
+==> Edit script
+"start:dev":"node --watch-path=. ./src/main.js"
+
+------------------------------------------------------------------
+cross-env=> to set the environment variable NODE_ENV (development or production)  
+=> process.env.NODE_ENV = "development"
+
+npm i cross-env
+==>
+"start:dev": "cross-env NODE_ENV=development node --watch-path=. ./src/main.js"
+"start:prod": "cross-env NODE_ENV=production node ./src/main.js"     (no need to watch mood)
+
+==> Edit config.service.js  (to specify which file to access)
+
+const envPath={
+development: `.env.development`,
+production: `.env.production`
+}
+config({path.resolve(`./config/${envPath[development]}`)})
+
+
+.gitignore => ./config/.env.development   ./config/.env.production
+
+
+
+
+
